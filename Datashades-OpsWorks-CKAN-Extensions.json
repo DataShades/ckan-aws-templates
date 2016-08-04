@@ -1,0 +1,263 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates OpWorks Applications for CKAN Stack extensions.\nCurrent extension list:\nAGLS\nCesiumPreview\nDisqus\nGoogle Analytics\nOfficeDocs\nPDFView\nScheming\nSpatial\nZipPreview",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Stack Parameters"
+          },
+          "Parameters": [
+            "OpsWorksStack"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "OpsWorksStack": {
+          "default": "What OpsWorks Stack do you want to add CKAN Extensions to?"
+        }
+      }
+    }
+  },
+  "Parameters": {
+    "OpsWorksStack": {
+      "Description": "OpsWorks Stack ID",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "CKANExtAGLS": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/datagovau/ckanext-agls#egg=ckanext-agls"
+        },
+        "Description": "CKAN Ext AGLS",
+        "EnableSsl": false,
+        "Name": "ckanext-agls",
+        "Shortname": "ckanext-agls",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtCesiumPreview": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/datagovau/ckanext-cesiumpreview.git@dga_prod#egg=ckanext-cesiumpreview"
+        },
+        "Description": "CKAN Ext Cesium Preview",
+        "EnableSsl": false,
+        "Name": "ckanext-cesiumpreview",
+        "Shortname": "ckanext-cesiumpreview",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtDisqus": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/okfn/ckanext-disqus#egg=ckanext-disqus"
+        },
+        "Description": "CKAN Ext Disqus",
+        "EnableSsl": false,
+        "Name": "ckanext-disqus",
+        "Shortname": "ckanext-disqus",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtGA": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/ckan/ckanext-googleanalytics.git"
+        },
+        "Description": "CKAN Ext Google Analytics",
+        "EnableSsl": false,
+        "Name": "ckanext-googleanalytics",
+        "Shortname": "ckanext-googleanalytics",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtGAReport": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/datagovau/ckanext-ga-report.git@dga_prod#egg=ckanext-ga-report"
+        },
+        "Description": "CKAN Ext GA Report",
+        "EnableSsl": false,
+        "Name": "ckanext-ga-report",
+        "Shortname": "ckanext-ga-report",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtOfficeDocs": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/jqnatividad/ckanext-officedocs"
+        },
+        "Description": "CKAN Ext Dcat",
+        "EnableSsl": false,
+        "Name": "ckanext-officedocs",
+        "Shortname": "ckanext-officedocs",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtPDFView": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/ckan/ckanext-pdfview.git"
+        },
+        "Description": "CKAN Ext PDF View",
+        "EnableSsl": false,
+        "Name": "ckanext-pdfview",
+        "Shortname": "ckanext-pdfview",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtScheming": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/ckan/ckanext-scheming.git"
+        },
+        "Description": "CKAN Ext Scheming",
+        "EnableSsl": false,
+        "Name": "ckanext-scheming",
+        "Shortname": "ckanext-scheming",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtSpatial": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/okfn/ckanext-spatial.git#egg=ckanext-spatial"
+        },
+        "Description": "CKAN Ext Spatial",
+        "EnableSsl": false,
+        "Name": "ckanext-spatial",
+        "Shortname": "ckanext-spatial",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
+    "CKANExtZipPreview": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "AppSource": {
+          "Type": "git",
+          "Url": "https://github.com/datagovau/ckanext-zippreview.git"
+        },
+        "Description": "CKAN Ext Zip Preview",
+        "EnableSsl": false,
+        "Name": "ckanext-zippreview",
+        "Shortname": "ckanext-zippreview",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    }
+  },
+  "Outputs": {
+    "AGLS": {
+      "Value": {
+        "Ref": "CKANExtAGLS"
+      },
+      "Description": "CKAN AGLS Extension App ID"
+    },
+    "Cesium": {
+      "Value": {
+        "Ref": "CKANExtCesiumPreview"
+      },
+      "Description": "CKAN Cesium Preview Extension App ID"
+    },
+    "Disqus": {
+      "Value": {
+        "Ref": "CKANExtDisqus"
+      },
+      "Description": "CKAN Disqus Extension App ID"
+    },
+    "GA": {
+      "Value": {
+        "Ref": "CKANExtGA"
+      },
+      "Description": "CKAN Google Analytics App ID"
+    },
+    "GAReport": {
+      "Value": {
+        "Ref": "CKANExtGAReport"
+      },
+      "Description": "CKAN Google Analytics Reporting App ID"
+    },
+    "OfficeDocs": {
+      "Value": {
+        "Ref": "CKANExtOfficeDocs"
+      },
+      "Description": "CKAN Office Docs App ID"
+    },
+    "PDFView": {
+      "Value": {
+        "Ref": "CKANExtPDFView"
+      },
+      "Description": "CKAN PDF View App ID"
+    },
+    "Scheming": {
+      "Value": {
+        "Ref": "CKANExtScheming"
+      },
+      "Description": "CKAN Scheming App ID"
+    },
+    "Spatial": {
+      "Value": {
+        "Ref": "CKANExtSpatial"
+      },
+      "Description": "CKAN Spatial App ID"
+    },
+    "ZipPreview": {
+      "Value": {
+        "Ref": "CKANExtZipPreview"
+      },
+      "Description": "CKAN Zip Preview App ID"
+    }
+  }
+}

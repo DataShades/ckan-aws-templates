@@ -1,0 +1,1930 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates AWS VPCs with:\r\n* User selectable DEV,UAT,PROD creation\r\n* Subnets for selected region \r\n* Admin Access Security Group \n",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "General Options"
+          },
+          "Parameters": [
+            "VPCPrefix",
+            "AdminIPQty",
+            "AdminIPs",
+            "SubnetQty",
+            "SubnetAZs"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Development VPC"
+          },
+          "Parameters": [
+            "InclDev",
+            "DevCIDR",
+            "DevSubnetCIDRs"
+          ]
+        },
+        {
+          "Label": {
+            "default": "UAT VPC"
+          },
+          "Parameters": [
+            "InclUAT",
+            "UATCIDR",
+            "UATSubnetCIDRs"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Production VPC"
+          },
+          "Parameters": [
+            "InclProd",
+            "ProdCIDR",
+            "ProdSubnetCIDRs"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "DevAdminSG": {
+          "default": "Development VPC Security Group ID"
+        },
+        "VPCPrefix": {
+          "default": "What optional Prefix do you want to use for your VPC Name tags?"
+        },
+        "SubnetQty": {
+          "default": "How many subnets should be provisioned within each VPC?"
+        },
+        "AdminIPs": {
+          "default": "What static Public IP addresses will your SysAdmins SSH in from?"
+        },
+        "AdminIPQty": {
+          "default": "How many SysAdmin IP addresses are you providing?"
+        },
+        "InclDev": {
+          "default": "Do you want to provision a Development VPC?"
+        },
+        "SubnetAZs": {
+          "default": "What Availability Zones do you want to use for your VPCs?"
+        },
+        "DevCIDR": {
+          "default": "What CIDR Block do you want to use for the Development VPC?"
+        },
+        "DevSubnetCIDRs": {
+          "default": "What CIDR Blocks do you want to use for the Development subnets? "
+        },
+        "InclUAT": {
+          "default": "Do you want to provision a UAT VPC?"
+        },
+        "UATCIDR": {
+          "default": "What CIDR Block do you want to use for the UAT VPC?"
+        },
+        "UATSubnetCIDRs": {
+          "default": "What CIDR Blocks do you want to use for the UAT subnets? "
+        },
+        "InclProd": {
+          "default": "Do you want to provision a Production VPC?"
+        },
+        "ProdCIDR": {
+          "default": "What CIDR Block do you want to use for the Production VPC?"
+        },
+        "ProdSubnetCIDRs": {
+          "default": "What CIDR Blocks do you want to use for the Production subnets? "
+        }
+      }
+    }
+  },
+  "Parameters": {
+    "VPCPrefix": {
+      "Default": "CKAN",
+      "Description": "Alphanumeric prefix for VPC Names",
+      "Type": "String",
+      "MinLength": "0",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Can contain only alphanumeric characters."
+    },
+    "AdminIPQty": {
+      "MaxValue": "4",
+      "MinValue": "1",
+      "Type": "Number",
+      "Default": "1"
+    },
+    "AdminIPs": {
+      "Description": "Comma separated list of CIDR Addresses for Admin Security Group",
+      "Type": "CommaDelimitedList",
+      "ConstraintDescription": "Can only contain IP Addresses separated by commas.",
+      "Default": "203.217.61.171/32"
+    },
+    "SubnetQty": {
+      "MaxValue": "3",
+      "MinValue": "1",
+      "Description": "Must not exceed available AZs in current Region",
+      "Type": "Number",
+      "Default": "3"
+    },
+    "SubnetAZs": {
+      "Default": "",
+      "Description": "Select Availability Zones for subnets",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    },
+    "InclDev": {
+      "Type": "String",
+      "Default": "yes",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "DevCIDR": {
+      "Description": "CIDR block in the form of x.x.x.x/x",
+      "Type": "String",
+      "MaxLength": "18",
+      "MinLength": "9",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x.",
+      "Default": "172.20.0.0/16"
+    },
+    "DevSubnetCIDRs": {
+      "Description": "Comma separated list of CIDR Blocks for selected subnets",
+      "Type": "CommaDelimitedList",
+      "ConstraintDescription": "Can only contain IP Addresses separated by commas.",
+      "Default": "172.20.0.0/24,172.20.16.0/24,172.20.32.0/24"
+    },
+    "InclUAT": {
+      "Type": "String",
+      "Default": "yes",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "UATCIDR": {
+      "Description": "CIDR block in the form of x.x.x.x/x",
+      "Type": "String",
+      "MaxLength": "18",
+      "MinLength": "9",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x.",
+      "Default": "172.21.0.0/16"
+    },
+    "UATSubnetCIDRs": {
+      "Description": "Comma separated list of CIDR Blocks for selected subnets",
+      "Type": "CommaDelimitedList",
+      "ConstraintDescription": "Can only contain IP Addresses separated by commas.",
+      "Default": "172.21.0.0/24,172.21.16.0/24,172.21.32.0/24"
+    },
+    "InclProd": {
+      "Type": "String",
+      "Default": "yes",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "ProdCIDR": {
+      "Description": "CIDR block in the form of x.x.x.x/x",
+      "Type": "String",
+      "MaxLength": "18",
+      "MinLength": "9",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x.",
+      "Default": "172.30.0.0/16"
+    },
+    "ProdSubnetCIDRs": {
+      "Description": "Comma separated list of CIDR Blocks for selected subnets",
+      "Type": "CommaDelimitedList",
+      "ConstraintDescription": "Can only contain IP Addresses separated by commas.",
+      "Default": "172.30.0.0/24,172.30.16.0/24,172.30.32.0/24"
+    }
+  },
+  "Conditions": {
+    "AdminIP2": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            "2",
+            {
+              "Ref": "AdminIPQty"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "3",
+            {
+              "Ref": "AdminIPQty"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "4",
+            {
+              "Ref": "AdminIPQty"
+            }
+          ]
+        }
+      ]
+    },
+    "AdminIP3": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            "3",
+            {
+              "Ref": "AdminIPQty"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "4",
+            {
+              "Ref": "AdminIPQty"
+            }
+          ]
+        }
+      ]
+    },
+    "AdminIP4": {
+      "Fn::Equals": [
+        "4",
+        {
+          "Ref": "AdminIPQty"
+        }
+      ]
+    },
+    "BuildDev": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "InclDev"
+        }
+      ]
+    },
+    "DevAZ2": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclDev"
+            }
+          ]
+        },
+        {
+          "Fn::Or": [
+            {
+              "Fn::Equals": [
+                "2",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            },
+            {
+              "Fn::Equals": [
+                "3",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "DevAZ3": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclDev"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "3",
+            {
+              "Ref": "SubnetQty"
+            }
+          ]
+        }
+      ]
+    },
+    "BuildUAT": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "InclUAT"
+        }
+      ]
+    },
+    "UATAZ2": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclUAT"
+            }
+          ]
+        },
+        {
+          "Fn::Or": [
+            {
+              "Fn::Equals": [
+                "2",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            },
+            {
+              "Fn::Equals": [
+                "3",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "UATAZ3": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclUAT"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "3",
+            {
+              "Ref": "SubnetQty"
+            }
+          ]
+        }
+      ]
+    },
+    "BuildProd": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "InclProd"
+        }
+      ]
+    },
+    "ProdAZ2": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclProd"
+            }
+          ]
+        },
+        {
+          "Fn::Or": [
+            {
+              "Fn::Equals": [
+                "2",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            },
+            {
+              "Fn::Equals": [
+                "3",
+                {
+                  "Ref": "SubnetQty"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ProdAZ3": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "InclProd"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "3",
+            {
+              "Ref": "SubnetQty"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "DevVPC": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "DevCIDR"
+        },
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "VPC"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevAdminSG": {
+      "Condition": "BuildDev",
+      "Properties": {
+        "GroupDescription": "Allow all traffic from Admin IP Addresses",
+        "VpcId": {
+          "Ref": "DevVPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "DevCIDR"
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "CidrIp": {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "AdminIPs"
+                }
+              ]
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "Fn::If": [
+              "AdminIP2",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "1",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP3",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "2",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP4",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "3",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "ADMIN-ACCESS"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "DevIGW": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "IGW"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevVPCtoIGWConnection": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "DevIGW"
+        },
+        "VpcId": {
+          "Ref": "DevVPC"
+        }
+      }
+    },
+    "DevInternetRouteTable": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DevVPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Route Table"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevInternetRoute": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DevIGW"
+        },
+        "RouteTableId": {
+          "Ref": "DevInternetRouteTable"
+        }
+      }
+    },
+    "DevPubNet1": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "DevSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "DevVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 1"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevPubSub1toRT": {
+      "Condition": "BuildDev",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DevInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "DevPubNet1"
+        }
+      }
+    },
+    "DevPubNet2": {
+      "Condition": "DevAZ2",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "DevSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "DevVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 2"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevPubSub2toRT": {
+      "Condition": "DevAZ2",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DevInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "DevPubNet2"
+        }
+      }
+    },
+    "DevPubNet3": {
+      "Condition": "DevAZ3",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "DevSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "DevVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "DEV",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 3"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "DevPubSub3toRT": {
+      "Condition": "DevAZ3",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DevInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "DevPubNet3"
+        }
+      }
+    },
+    "UATVPC": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "UATCIDR"
+        },
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "VPC"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      }
+    },
+    "UATAdminSG": {
+      "Condition": "BuildUAT",
+      "Properties": {
+        "GroupDescription": "Allow all traffic from Admin IP Addresses",
+        "VpcId": {
+          "Ref": "UATVPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "UATCIDR"
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "CidrIp": {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "AdminIPs"
+                }
+              ]
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "Fn::If": [
+              "AdminIP2",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "1",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP3",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "2",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP4",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "3",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "ADMIN-ACCESS"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "UATIGW": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "IGW"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      }
+    },
+    "UATVPCtoIGWConnection": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "UATIGW"
+        },
+        "VpcId": {
+          "Ref": "UATVPC"
+        }
+      }
+    },
+    "UATInternetRouteTable": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "UATVPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Route Table"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      }
+    },
+    "UATInternetRoute": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "UATIGW"
+        },
+        "RouteTableId": {
+          "Ref": "UATInternetRouteTable"
+        }
+      }
+    },
+    "UATPubNet1": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "UATSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "UATVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 1"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "DEV"
+          }
+        ]
+      }
+    },
+    "UATPubSub1toRT": {
+      "Condition": "BuildUAT",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "UATInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "UATPubNet1"
+        }
+      }
+    },
+    "UATPubNet2": {
+      "Condition": "UATAZ2",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "UATSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "UATVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 2"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      }
+    },
+    "UATPubSub2toRT": {
+      "Condition": "UATAZ2",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "UATInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "UATPubNet2"
+        }
+      }
+    },
+    "UATPubNet3": {
+      "Condition": "UATAZ3",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "UATSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "UATVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "UAT",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 3"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "UAT"
+          }
+        ]
+      }
+    },
+    "UATPubSub3toRT": {
+      "Condition": "UATAZ3",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "UATInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "UATPubNet3"
+        }
+      }
+    },
+    "ProdVPC": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "ProdCIDR"
+        },
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "VPC"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdAdminSG": {
+      "Condition": "BuildProd",
+      "Properties": {
+        "GroupDescription": "Allow all traffic from Admin IP Addresses",
+        "VpcId": {
+          "Ref": "ProdVPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "ProdCIDR"
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "CidrIp": {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "AdminIPs"
+                }
+              ]
+            },
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          },
+          {
+            "Fn::If": [
+              "AdminIP2",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "1",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP3",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "2",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          },
+          {
+            "Fn::If": [
+              "AdminIP4",
+              {
+                "CidrIp": {
+                  "Fn::Select": [
+                    "3",
+                    {
+                      "Ref": "AdminIPs"
+                    }
+                  ]
+                },
+                "FromPort": -1,
+                "IpProtocol": "-1",
+                "ToPort": -1
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "PROD",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "ADMIN-ACCESS"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "PROD"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "ProdIGW": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "IGW"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdVPCtoIGWConnection": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "ProdIGW"
+        },
+        "VpcId": {
+          "Ref": "ProdVPC"
+        }
+      }
+    },
+    "ProdInternetRouteTable": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "ProdVPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Route Table"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdInternetRoute": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "ProdIGW"
+        },
+        "RouteTableId": {
+          "Ref": "ProdInternetRouteTable"
+        }
+      }
+    },
+    "ProdPubNet1": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "ProdSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "ProdVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 1"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdPubSub1toRT": {
+      "Condition": "BuildProd",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "ProdInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "ProdPubNet1"
+        }
+      }
+    },
+    "ProdPubNet2": {
+      "Condition": "ProdAZ2",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "ProdSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "ProdVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 2"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdPubSub2toRT": {
+      "Condition": "ProdAZ2",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "ProdInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "ProdPubNet2"
+        }
+      }
+    },
+    "ProdPubNet3": {
+      "Condition": "ProdAZ3",
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "ProdSubnetCIDRs"
+            }
+          ]
+        },
+        "VpcId": {
+          "Ref": "ProdVPC"
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "2",
+            {
+              "Ref": "SubnetAZs"
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                " ",
+                [
+                  "Prod",
+                  {
+                    "Ref": "VPCPrefix"
+                  },
+                  "Public Subnet 3"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Version",
+            "Value": "Production"
+          }
+        ]
+      }
+    },
+    "ProdPubSub3toRT": {
+      "Condition": "ProdAZ3",
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "ProdInternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "ProdPubNet3"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "AdminSecurityGroup": {
+      "Value": {
+        "Ref": "DevAdminSG"
+      },
+      "Description": "SysAdmin Security Group Id"
+    },
+    "DevVPCID": {
+      "Condition": "BuildDev",
+      "Value": {
+        "Ref": "DevVPC"
+      },
+      "Description": "Development VPC ID"
+    },
+    "DevPublicSubnet1": {
+      "Condition": "BuildDev",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "DevPubNet1"
+            },
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "DevSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Development Public Subnet 1"
+    },
+    "DevPublicSubnet2": {
+      "Condition": "DevAZ2",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "DevPubNet2"
+            },
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Ref": "DevSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Development Public Subnet 2"
+    },
+    "DevPublicSubnet3": {
+      "Condition": "DevAZ3",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "DevPubNet3"
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "DevSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Development Public Subnet 3"
+    },
+    "DevInternetRouteTableId": {
+      "Condition": "BuildDev",
+      "Value": {
+        "Ref": "DevInternetRouteTable"
+      },
+      "Description": "Development Internet Route Table Id"
+    },
+    "UATVPCID": {
+      "Condition": "BuildUAT",
+      "Value": {
+        "Ref": "UATVPC"
+      },
+      "Description": "UAT VPC ID"
+    },
+    "UATPublicSubnet1": {
+      "Condition": "BuildUAT",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "UATPubNet1"
+            },
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "UATSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "UAT Public Subnet 1"
+    },
+    "UATPublicSubnet2": {
+      "Condition": "UATAZ2",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "UATPubNet2"
+            },
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Ref": "UATSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "UAT Public Subnet 2"
+    },
+    "UATPublicSubnet3": {
+      "Condition": "UATAZ3",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "UATPubNet3"
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "UATSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "UAT Public Subnet 3"
+    },
+    "UATInternetRouteTableId": {
+      "Condition": "BuildUAT",
+      "Value": {
+        "Ref": "UATInternetRouteTable"
+      },
+      "Description": "UAT Internet Route Table Id"
+    },
+    "ProdVPCID": {
+      "Condition": "BuildProd",
+      "Value": {
+        "Ref": "ProdVPC"
+      },
+      "Description": "Production VPC ID"
+    },
+    "ProdPublicSubnet1": {
+      "Condition": "BuildProd",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "ProdPubNet1"
+            },
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "ProdSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Production Public Subnet 1"
+    },
+    "ProdPublicSubnet2": {
+      "Condition": "ProdAZ2",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "ProdPubNet2"
+            },
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Ref": "ProdSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Production Public Subnet 2"
+    },
+    "ProdPublicSubnet3": {
+      "Condition": "ProdAZ3",
+      "Value": {
+        "Fn::Join": [
+          ":",
+          [
+            {
+              "Ref": "ProdPubNet3"
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "ProdSubnetCIDRs"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "Description": "Production Public Subnet 3"
+    },
+    "ProdInternetRouteTableId": {
+      "Condition": "BuildProd",
+      "Value": {
+        "Ref": "ProdInternetRouteTable"
+      },
+      "Description": "Production Internet Route Table Id"
+    }
+  }
+}
