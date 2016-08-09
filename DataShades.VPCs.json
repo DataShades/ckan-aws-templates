@@ -1680,11 +1680,26 @@
     }
   },
   "Outputs": {
-    "AdminSecurityGroup": {
+    "DevAdminSG": {
+      "Condition": "BuildDev",
       "Value": {
         "Ref": "DevAdminSG"
       },
-      "Description": "SysAdmin Security Group Id"
+      "Description": "Dev SysAdmin Security Group Id"
+    },
+    "UATAdminSG": {
+      "Condition": "BuildUAT",
+      "Value": {
+        "Ref": "UATAdminSG"
+      },
+      "Description": "UAT SysAdmin Security Group Id"
+    },
+    "ProdAdminSG": {
+      "Condition": "BuildProd",
+      "Value": {
+        "Ref": "ProdAdminSG"
+      },
+      "Description": "Prod SysAdmin Security Group Id"
     },
     "DevVPCID": {
       "Condition": "BuildDev",
