@@ -127,7 +127,7 @@
     },
     "SubnetAZs": {
       "Default": "",
-      "Description": "Select Availability Zones for subnets",
+      "Description": "Select Availability Zones for subnets. You need as many AZ's as subnets requested.",
       "Type": "List<AWS::EC2::AvailabilityZone::Name>"
     },
     "InclDev": {
