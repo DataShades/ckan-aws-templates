@@ -438,7 +438,7 @@
             "Arn"
           ]
         },
-        "DefaultOs": "Amazon Linux 2016.03",
+        "DefaultOs": "Amazon Linux 2016.09",
         "DefaultSshKeyName": {
           "Ref": "DefaultEC2Key"
         },
