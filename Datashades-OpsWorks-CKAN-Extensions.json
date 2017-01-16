@@ -44,23 +44,6 @@
         "Type": "other"
       }
     },
-    "CKANExtCesiumPreview": {
-      "Type": "AWS::OpsWorks::App",
-      "Properties": {
-        "AppSource": {
-          "Type": "git",
-          "Url": "https://github.com/datagovau/ckanext-cesiumpreview.git@dga_prod#egg=ckanext-cesiumpreview"
-        },
-        "Description": "CKAN Ext Cesium Preview",
-        "EnableSsl": false,
-        "Name": "ckanext-cesiumpreview",
-        "Shortname": "ckanext-cesiumpreview",
-        "StackId": {
-          "Ref": "OpsWorksStack"
-        },
-        "Type": "other"
-      }
-    },
     "CKANExtDisqus": {
       "Type": "AWS::OpsWorks::App",
       "Properties": {
@@ -89,23 +72,6 @@
         "EnableSsl": false,
         "Name": "ckanext-googleanalytics",
         "Shortname": "ckanext-googleanalytics",
-        "StackId": {
-          "Ref": "OpsWorksStack"
-        },
-        "Type": "other"
-      }
-    },
-    "CKANExtGAReport": {
-      "Type": "AWS::OpsWorks::App",
-      "Properties": {
-        "AppSource": {
-          "Type": "git",
-          "Url": "https://github.com/datagovau/ckanext-ga-report.git@dga_prod#egg=ckanext-ga-report"
-        },
-        "Description": "CKAN Ext GA Report",
-        "EnableSsl": false,
-        "Name": "ckanext-ga-report",
-        "Shortname": "ckanext-ga-report",
         "StackId": {
           "Ref": "OpsWorksStack"
         },
