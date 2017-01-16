@@ -9,17 +9,38 @@ Copyright 2016 Datashades
 **Contents**
 
 * Datashades.VPCs.json: [Optional] Creates dev,uat and production VPCs for OpsWorks stack 
-* Datashades-OpsWorks-CKAN-Stack.json: [Required] Creates AWS OpsWorks CKAN Stack
-* Datashades-OpsWorks-CKAN-Instances.json: [Optional] Creates initial Instances within AWS OpsWorks CKAN Stack
+* Datashades-OpsWorks-NFS-CKAN-Stack.json: [Required] Creates an AWS OpsWorks CKAN Stack using NFS and Solr
+* Datashades-OpsWorks-CKAN-Stack.json: [Depreciated] Creates AWS OpsWorks CKAN Stack using GFS and SolrCloud
+* Datashades-OpsWorks-CKAN-Instances.json: [Depreciated] Creates initial Instances within AWS OpsWorks GFS based CKAN Stack
 * Datashades-OpsWorks-CKAN-Extensions.json: [Optional] Creates base CKAN extensions Application definitions within AWS OpsWorks CKAN Stack
 
 **Features:**
 
 * Single click Enterprise grade CKAN deployment
 * User selectable VPC.
-* HA DB, Solr and Web nodes.
-* AWS RDS or EC2 for Postgres
+* HA DB and Web nodes.
+* AWS RDS for Postgres
 * User selectable instance and data volume sizes
+
+**2017 Update**
+
+We've switched back to our more traditional NFS Solr stack for a number of reasons:
+
+GFS has some serious performance issues within larger installs. The read performance on small files is somewhat poor, and write performance is a major issue. NFS is fast, stable and far easier to set up.
+
+SolrCloud didn't deliver the failover capability we'd hoped so we've switched back to single node Solr. With Route53 failover and rsync however, we believe a HA configuration is possible. The scripts support Route53 failover provisioning, but some work remains to actually put this functionality into practise.
+
+The overall setup of the NFS stack is way easier. Here's the nutshell version:
+
+* Create an instance called services1 in the NFS OpsWorks layer. Add this instance to the Solr and Redis layers before starting it.
+* Start the services instance you just added to the layers in step one. Wait for it to finish setting up.
+* Create an instance in the Web layer. Start it up and add it to an ELB, or set up a DNS record directly to it's IP.
+
+Common issues during set up are as follows:
+
+* yum-cron package doesn't install sometimes due to issues with mirrors. Go to Deployments and repeat setup. This will usually see a clear run through.
+* repo issues: Usually related to bad private keys or repo URLs
+* Application sources: Check ckan and Solr sources. Solr in particular changes frequently.
 
 **Assumptions:**
 
@@ -36,10 +57,13 @@ Installation
 
 * Use the Datashades.VPCs.json CloudFormation template to optionally create a Dev, UAT and Production VPC. You can simply use an existing VPC just fine.
 We tend to use this template to create a preprod VPC stack that contains Dev and UAT. We typically use the AWS default VPC for production.
-* Use Datashades-OpsWorks-CKAN-Stack.json CloudFormation template to create the actual AWS OpsWorks CKAN stack.
-* Optionally use the Datashades-OpsWorks-CKAN-Instances.json CloudFormation template to create the initial instances to run within the stack once the OpsWorks stack is successfully provisioned. See detailed instructions and notes below regarding this template.
+* Use Datashades-OpsWorks-CKAN-NFS-Stack.json CloudFormation template to create the actual AWS OpsWorks CKAN stack.
+* Create your instances as follows:
+* Create an instance called services1 in the NFS OpsWorks layer. Add this instance to the Solr and Redis layers before starting it.
+* Start the services instance you just added to the layers in step one. Wait for it to finish setting up.
+* Create an instance in the Web layer. Start it up and add it to an ELB, or set up a DNS record directly to it's IP.
+
 * Optionally use the Datashades-OpsWorks-CKAN-Extensions.json CloudFormation template to add CKAN extensions as OpsWorks Application definitions to stack once CKAN is successfully running. See detailed instructions and notes below regarding this template.
-* Create Route53 records for Solr
 
 **Datashades.VPCs**
 
@@ -86,12 +110,12 @@ It makes the most amount of sense to create preprod VPCs together, and Productio
 want to scrap your Dev and UAT VPCs to rebuild them from scratch than your Production VPC. For the vast majority of people, they
 wouldn't rebuild their VPCs at all. 
 
-**Datashades-OpsWorks-CKAN-Stack.json**
+**Datashades-OpsWorks-CKAN-NFS-Stack.json**
 
 From AWS Console: 
 
 * Create a new Cloud Formation stack.
-* Select the upload template option and upload the Datashades-OpsWorks-CKAN-Stack.json template.
+* Select the upload template option and upload the Datashades-OpsWorks-CKAN-NFS-Stack.json template.
 
 **Template Parameters:**
 
@@ -133,7 +157,6 @@ Allows you to define specific aspects of the AWS OpsWorks stack that will be bui
 The application sources are important to keep up to date. You might want to change the default for Solr to something you know keeps archives of older versions so you don't have to keep changing it. The mirrors for example drop old versions. 
 
 * SolrSource: Expects a zip archive. You'll want to change the default to a mirror that's much closer to you.
-* ZooKeeperSource: Expects a tar.gz archive. You'll want to change the default to a mirror that's much closer to you.
 * CKANSource: Expects a zip archive.
 
 **NOTES:**
@@ -146,7 +169,7 @@ A very common issue is mirrors not supporting the version of solr you've stipula
 Some of the parameters in this stack aren't technically required. This template originally provisioned instances as well, and the parameters were required for that. Since separation the parameters haven't been removed.
 In future revisions however, the instances template may be reintroduced as a sub template, and the parameters may become relevant again. In the meanwhile they are somewhat harmless.
 
-**Datashades-OpsWorks-CKAN-Instances.json**
+**Datashades-OpsWorks-CKAN-Instances.json (Depreciated)**
 
 From AWS Console: 
 
@@ -227,19 +250,6 @@ by adding the Application definition for extensions one by one, and deploying af
 
 In most environments, when deploying new instances to the Web Layer, you really do want all the extensions to be deployed all at once.
 
-**Solr Route53 Records**
-
-There's probably a much better way of allowing CKAN to talk to SolrCloud, but this is an approach we know works, and isn't difficult to
-implement via Route53 even if it has Ninja and Hacker stamped all over it.
-
-* Create a CNAME record [version]solr.[tld] that is an Alias to [version]solr1.[tld] IE: uatsolr.mydomain.com ALIAS of uarsolr1.mydomain.com
-* Change the Routing Policy to failover
-* Failover Record Type Primary
-* SetID: leave as suggested default
-* Evaluate Health Target yes
-* Create a CNAME record [version]solr.[tld] that is an Alias to [version]solr2.[tld]
-* Change the Routing policy to failover, Record Type Secondary
-* Repeat step 4 and 5 for this record.
 
 Known Shortcomings
 ------------------
@@ -263,24 +273,6 @@ The templates in their current form don't create the Route53 records you need fo
 Known Issues
 ------------
 
-**Critical**
-
-There is an obscure issue we've made Amazon aware of regarding OpsWorks user management.
-When users such as solr or ckan are created by OpsWorks recipes, they're automatically allocated an UID as you'd expect. Unfortunately
-the UIDs allocated are in the same range OpsWorks uses for managing stack users permitting ssh access.
-The upshot of all this, is when you add an OpsWorks stack user via the console, the AWS OpsWorks user recipe effectively hijacks the solr/ckan users
-and turns them into OpsWorks stack users.
-
-This is alarmingly bad and we've suggested to Amazon they perhaps limit this behavior to users within the UID range that also belong to
-the opsworks group. You can identify when this bug has struck you because solr stops working, and ckan is deleted altogether.
-The configure event in the OpsWorks stack reports an error - it's hijacking fails, but after all the damage is done.
-
-You will also see a OpsWorks user with solr or ckan group membership.
-
-We're working on a number of solutions to this prior to a Version 1 release.
-
-The problem doesn't occur if you don't add any more ssh users to OpsWorks after the stack is provisioned. 
-
 **Minor**
 
 Zookeeper, GFS and SolrCloud aren't the easiest services to provision in an automated manner. At least not in highly dynamic stacks.
@@ -295,14 +287,20 @@ and we know if you added a third node and expected this to just run flawlessly, 
 Ultimately we'd like to be using AWS ElasticSearch and Elastic File Store if not S3 or a combination of those two. I'm certain both those
 things will come. EFS is in limited release, from a regional perspective. The search in CKAN needs changes to support ElasticSearch.
 
+**Resolved**
+
+There was an obscure issue with OpsWorks user management.
+When users such as solr or ckan were created by OpsWorks recipes, they're automatically allocated an UID as you'd expect. Unfortunately
+the UIDs allocated are in the same range OpsWorks uses for managing stack users permitting ssh access.
+
+The problem was resolved by specifically assigning a UID and GID for Solr and CKAN.
+
 Final Notes
 -----------
 
-The Datashades stack such as it is, is in active use by Link Digital and forms the basis on which Link Digital builds and supports
-it's data platforms. As such it should be relatively well maintained.
+The Datashades stack such as it is, is in active use by Link Digital and forms the basis on which Link Digital builds and supports it's data platforms. As such it should be relatively well maintained.
 
-We've done an initial release early more so people can see how to resolve particular issues when deploying CKAN. Especially in large scalable 
-deployments.
+We've done an initial release early more so people can see how to resolve particular issues when deploying CKAN. Especially in large scalable deployments.
 
 I've personally seen a lot of "CKAN in a box" releases using Docker and other approaches. On the whole, these are fantastic for getting your
 feet wet without drowning in the deep end. Datashades isn't an attempt to complete or replace any of these approachs. Rather, Datashades is
