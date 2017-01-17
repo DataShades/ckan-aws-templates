@@ -171,12 +171,6 @@
       },
       "Description": "CKAN AGLS Extension App ID"
     },
-    "Cesium": {
-      "Value": {
-        "Ref": "CKANExtCesiumPreview"
-      },
-      "Description": "CKAN Cesium Preview Extension App ID"
-    },
     "Disqus": {
       "Value": {
         "Ref": "CKANExtDisqus"
@@ -188,12 +182,6 @@
         "Ref": "CKANExtGA"
       },
       "Description": "CKAN Google Analytics App ID"
-    },
-    "GAReport": {
-      "Value": {
-        "Ref": "CKANExtGAReport"
-      },
-      "Description": "CKAN Google Analytics Reporting App ID"
     },
     "OfficeDocs": {
       "Value": {
