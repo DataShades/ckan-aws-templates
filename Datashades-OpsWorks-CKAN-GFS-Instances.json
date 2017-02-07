@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates instances for OpsWorks CKAN NFS Stack.\n",
+  "Description": "Creates an OpsWorks CKAN Stack.\n",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -9,8 +9,8 @@
             "default": "OpsWorks Stack Details"
           },
           "Parameters": [
-            "OpsWorksStackID",
-            "NFSLayerID",
+            "OpsWorksStack",
+            "GFSLayerID",
             "SolrLayerID",
             "RedisLayerID",
             "WebLayerID"
@@ -39,11 +39,11 @@
         "DefaultEC2Key": {
           "default": "What EC2 key pair should these instances use for SSH access?"
         },
-        "OpsWorksStackID": {
+        "OpsWorksStack": {
           "default": "What OpsWorks stack do you want to provision instances into?"
         },
-        "NFSLayerID": {
-          "default": "What is the NFS Layer ID of the stack?"
+        "GFSLayerID": {
+          "default": "What is the GFS Layer ID of the stack?"
         },
         "SolrLayerID": {
           "default": "What is the Solr Layer ID of the stack?"
@@ -53,12 +53,6 @@
         },
         "WebLayerID": {
           "default": "What is the Web Layer ID of the stack?"
-        },
-        "DrupalWebLayerID": {
-          "default": "What is the Drupal Web Layer ID of the stack?"
-        },
-        "DrupalDBLayerID": {
-          "default": "What is the Drupal DB Layer ID of the stack?"
         },
         "PrimarySubnet": {
           "default": "Which Subnet in the selected VPC should primary instances be provisioned in?"
@@ -108,11 +102,11 @@
       "Description": "Select an existing SSH key",
       "Type": "AWS::EC2::KeyPair::KeyName"
     },
-    "OpsWorksStackID": {
+    "OpsWorksStack": {
       "Description": "Enter an OpsWorks Stack ID.",
       "Type": "String"
     },
-    "NFSLayerID": {
+    "GFSLayerID": {
       "Description": "Enter an OpsWorks Stack Layer ID.",
       "Type": "String"
     },
@@ -138,7 +132,7 @@
     }
   },
   "Resources": {
-    "OpswxEC2Services1": {
+    "OpwxEC2Services1": {
       "Type": "AWS::OpsWorks::Instance",
       "Properties": {
         "SubnetId": {
@@ -151,7 +145,7 @@
         },
         "LayerIds": [
           {
-            "Ref": "NFSLayerID"
+            "Ref": "GFSLayerID"
           },
           {
             "Ref": "RedisLayerID"
@@ -164,19 +158,45 @@
           "Ref": "DefaultEC2Key"
         },
         "StackId": {
-          "Ref": "OpsWorksStackID"
+          "Ref": "OpsWorksStack"
         }
       }
     },
-    "OpswxEC2Web1": {
+    "OpwxEC2Services2": {
+      "DependsOn": "OpwxEC2Services1",
       "Type": "AWS::OpsWorks::Instance",
-      "DependsOn": [
-        "OpswxEC2Services1"
-      ],
       "Properties": {
         "SubnetId": {
           "Ref": "SecondarySubnet"
         },
+        "RootDeviceType": "ebs",
+        "InstallUpdatesOnBoot": true,
+        "InstanceType": {
+          "Ref": "NFSEC2Size"
+        },
+        "LayerIds": [
+          {
+            "Ref": "GFSLayerID"
+          },
+          {
+            "Ref": "SolrLayerID"
+          }
+        ],
+        "SshKeyName": {
+          "Ref": "DefaultEC2Key"
+        },
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        }
+      }
+    },
+    "OpwxEC2WEB1": {
+      "Type": "AWS::OpsWorks::Instance",
+      "DependsOn": [
+        "OpwxEC2Services1",
+        "OpwxEC2Services2"
+      ],
+      "Properties": {
         "RootDeviceType": "ebs",
         "InstallUpdatesOnBoot": true,
         "InstanceType": {
@@ -191,7 +211,7 @@
           "Ref": "DefaultEC2Key"
         },
         "StackId": {
-          "Ref": "OpsWorksStackID"
+          "Ref": "OpsWorksStack"
         }
       }
     }

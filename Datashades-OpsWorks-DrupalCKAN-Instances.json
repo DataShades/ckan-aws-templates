@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates instances for OpsWorks CKAN NFS Stack.\n",
+  "Description": "Creates instances for OpsWorks Drupal CKAN NFS Stack.\n",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -13,7 +13,9 @@
             "NFSLayerID",
             "SolrLayerID",
             "RedisLayerID",
-            "WebLayerID"
+            "WebLayerID",
+            "DrupalDBLayerID",
+            "DrupalWebLayerID"
           ]
         },
         {
@@ -128,6 +130,14 @@
       "Description": "Enter an OpsWorks Stack Layer ID.",
       "Type": "String"
     },
+    "DrupalWebLayerID": {
+      "Description": "Enter an OpsWorks Stack Layer ID.",
+      "Type": "String"
+    },
+    "DrupalDBLayerID": {
+      "Description": "Enter an OpsWorks Stack Layer ID.",
+      "Type": "String"
+    },
     "PrimarySubnet": {
       "Type": "AWS::EC2::Subnet::Id",
       "Description": "Select an existing subnet residing in the selected VPC."
@@ -158,6 +168,9 @@
           },
           {
             "Ref": "SolrLayerID"
+          },
+          {
+            "Ref": "DrupalDBLayerID"
           }
         ],
         "SshKeyName": {
@@ -185,6 +198,9 @@
         "LayerIds": [
           {
             "Ref": "WebLayerID"
+          },
+          {
+            "Ref": "DrupalWebLayerID"
           }
         ],
         "SshKeyName": {
