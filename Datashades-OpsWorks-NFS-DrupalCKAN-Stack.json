@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates an OpsWorks CKAN Stack.\n",
+  "Description": "Creates an OpsWorks NFS based CKAN Stack with Drupal front end.\n",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -23,14 +23,29 @@
             "StackVersion",
             "StackTLD",
             "CreateTLD",
+            "CreateInstances",
+            "InstancesTemplate",
+            "CreateExtensions",
+            "ExtensionsTemplate",
             "NFSEC2Size",
             "WebEC2Size",
             "DefaultEC2Key",
+            "AdminUserGroup",
+            "AdminPubKeyBucket",
             "StackVPC",
             "PrimarySubnet",
             "SecondarySubnet",
             "AdminSG",
             "RDSSize"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Drupal MySQL Options"
+          },
+          "Parameters": [
+            "MySQLRootPassword",
+            "MySQLUserPassword"
           ]
         },
         {
@@ -49,8 +64,18 @@
           },
           "Parameters": [
             "SolrSource",
-            "ZooKeeperSource",
-            "CKANSource"
+            "CKANSource",
+            "DrupalSource"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Optional Monitoring"
+          },
+          "Parameters": [
+            "IcingaMaster",
+            "IcingaPW",
+            "SentryURL"
           ]
         }
       ],
@@ -64,8 +89,8 @@
         "CKANSource": {
           "default": "Provide the URL for CKAN source archive:"
         },
-        "ZooKeeperSource": {
-          "default": "Provide the URL for ZooKeeper source archive:"
+        "DrupalSource": {
+          "default": "Provide the URL for Drupal 7 source archive:"
         },
         "CookbookSSHKey": {
           "default": "Paste the private key for the Cookbook repository."
@@ -82,11 +107,29 @@
         "CreateServiceRole": {
           "default": "Do you need an OpsWorks Service Role created?"
         },
+        "CreateInstances": {
+          "default": "Do you want to instances provisioned with this stack?"
+        },
+        "InstancesTemplate": {
+          "default": "Where is the CloudFormation Template for your Instances?"
+        },
+        "CreateExtensions": {
+          "default": "Do you want to provison CKAN extensions with this stack?"
+        },
+        "ExtensionsTemplate": {
+          "default": "Where is the CloudFormation Template for your CKAN Extensions?"
+        },
         "StackTLD": {
           "default": "What TLD hosted on Route53 is this stack using for internal DNS?"
         },
         "DefaultEC2Key": {
           "default": "What EC2 key pair should all instances in the OpsWorks stack use for SSH access?"
+        },
+        "AdminUserGroup": {
+          "default": "What group should Bastion Host Admins belong to?"
+        },
+        "AdminPubKeyBucket": {
+          "default": "Where is the S3 bucket for Bastion Host Admin's public keys?"
         },
         "StackVPC": {
           "default": "What VPC should OpsWorks stack instances belong to?"
@@ -112,8 +155,23 @@
         "PGDBPassword": {
           "default": "Enter a password for Postgres DB access."
         },
+        "MySQLRootPassword": {
+          "default": "Enter a password for MySQL root Admin."
+        },
+        "MySQLUserPassword": {
+          "default": "Enter a password for Drupal MySQL User. IE: The Password Drupal uses to access it's database."
+        },
         "DataVolSize": {
           "default": "How big should the Data Volume size be for this OpsWorks Stack?"
+        },
+        "IcingaMaster": {
+          "default": "What is the URL of the Master Node for your Icinga2 Monitoring?"
+        },
+        "SentryURL": {
+          "default": "What is the client URL for your Sentry Monitoring?"
+        },
+        "IcingaPW": {
+          "default": "What is the API Password to request tickets from your Icinga2 Monitoring Master Node?"
         },
         "NFSCIDR": {
           "default": "What CIDR block will File Storage clients reside in?"
@@ -124,22 +182,7 @@
   "Parameters": {
     "CookbookURL": {
       "Default": "https://github.com/DataShades/opswx-ckan-cookbook.git",
-      "Description": "Repository URL.\n",
-      "Type": "String"
-    },
-    "SolrSource": {
-      "Description": "URL for zip archive.",
-      "Default": "http://apache.mirror.digitalpacific.com.au/lucene/solr/5.5.2/solr-5.5.2.zip",
-      "Type": "String"
-    },
-    "CKANSource": {
-      "Description": "URL for zip archive.",
-      "Default": "https://github.com/ckan/ckan/archive/ckan-2.5.2.zip",
-      "Type": "String"
-    },
-    "ZooKeeperSource": {
-      "Description": "URL for tar.gz archive.",
-      "Default": "http://apache.mirror.digitalpacific.com.au/zookeeper/stable/zookeeper-3.4.8.tar.gz",
+      "Description": "Repository URL. Must be SSH URL for private repos with private key.\n",
       "Type": "String"
     },
     "CookbookSSHKey": {
@@ -153,6 +196,21 @@
       "Type": "String",
       "MinLength": "1",
       "MaxLength": "64"
+    },
+    "SolrSource": {
+      "Description": "URL for zip archive.",
+      "Default": "http://apache.mirror.digitalpacific.com.au/lucene/solr/5.5.3/solr-5.5.3.zip",
+      "Type": "String"
+    },
+    "CKANSource": {
+      "Description": "URL for zip archive.",
+      "Default": "https://github.com/ckan/ckan/archive/ckan-2.5.2.zip",
+      "Type": "String"
+    },
+    "DrupalSource": {
+      "Description": "URL for zip archive.",
+      "Default": "https://ftp.drupal.org/files/projects/drupal-7.53.zip",
+      "Type": "String"
     },
     "StackVersion": {
       "Description": "Select a stack version.",
@@ -180,8 +238,36 @@
         "no"
       ]
     },
+    "InstancesTemplate": {
+      "Description": "Valid S3 Bucket Location",
+      "Type": "String",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Instances.json"
+    },
+    "CreateExtensions": {
+      "Description": "Optional.",
+      "Type": "String",
+      "Default": "no",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "ExtensionsTemplate": {
+      "Description": "Valid S3 Bucket Location",
+      "Type": "String",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Extensions.json"
+    },
     "CreateServiceRole": {
       "Description": "Required if OpsWorks stacks have never been created in this account.",
+      "Type": "String",
+      "Default": "no",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "CreateInstances": {
+      "Description": "Optional.",
       "Type": "String",
       "Default": "no",
       "AllowedValues": [
@@ -227,6 +313,30 @@
       "Description": "Select an existing SSH key",
       "Type": "AWS::EC2::KeyPair::KeyName"
     },
+    "AdminUserGroup": {
+      "Description": "Valid Linux group name",
+      "Type": "String",
+      "Default": "link"
+    },
+    "IcingaMaster": {
+      "Description": "Valid DNS Hostname",
+      "Type": "String",
+      "Default": "monitoring.links.com.au"
+    },
+    "SentryURL": {
+      "Description": "Valid Sentry Client URL",
+      "Type": "String"
+    },
+    "IcingaPW": {
+      "NoEcho": "true",
+      "Description": "Icinga2 issued API Key",
+      "Type": "String"
+    },
+    "AdminPubKeyBucket": {
+      "Description": "S3 Bucket URL",
+      "Type": "String",
+      "Default": "s3://link-opsworks/keys/"
+    },
     "StackVPC": {
       "Description": "Existing VPC ID.",
       "Type": "AWS::EC2::VPC::Id"
@@ -269,6 +379,24 @@
       "AllowedPattern": "[a-zA-Z0-9]*",
       "ConstraintDescription": "Must be 8 - 64 alphanumeric characters."
     },
+    "MySQLRootPassword": {
+      "NoEcho": "true",
+      "Description": "Password must be at least 8 alphanumeric characters upto a maximum of 64 characters in length.",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Must be 8 - 64 alphanumeric characters."
+    },
+    "MySQLUserPassword": {
+      "NoEcho": "true",
+      "Description": "Password must be at least 8 alphanumeric characters upto a maximum of 64 characters in length.",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Must be 8 - 64 alphanumeric characters."
+    },
     "DataVolSize": {
       "Description": "Define size in GB (1 -1000).",
       "Type": "Number",
@@ -300,6 +428,22 @@
         "yes",
         {
           "Ref": "CreateServiceRole"
+        }
+      ]
+    },
+    "ProvisionInstances": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "CreateInstances"
+        }
+      ]
+    },
+    "ProvisionExtensions": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "CreateExtensions"
         }
       ]
     },
@@ -414,6 +558,28 @@
         },
         "CustomJson": {
           "datashades": {
+            "ckan_web": {
+              "endpoint": "/data",
+              "sentryurl": {
+                "Ref": "SentryURL"
+              }
+            },
+            "icinga": {
+              "password": {
+                "Ref": "IcingaPW"
+              },
+              "master": {
+                "Ref": "IcingaMaster"
+              }
+            },
+            "jumpbox": {
+              "bucket": {
+                "Ref": "AdminPubKeyBucket"
+              },
+              "usergroup": {
+                "Ref": "AdminUserGroup"
+              }
+            },
             "nfs": {
               "cidr": {
                 "Ref": "NFSCIDR"
@@ -422,6 +588,14 @@
             "postgres": {
               "password": {
                 "Ref": "PGDBPassword"
+              }
+            },
+            "mysql": {
+              "rootpw": {
+                "Ref": "MySQLRootPassword"
+              },
+              "userpw": {
+                "Ref": "MySQLUserPassword"
               }
             },
             "tld": {
@@ -485,20 +659,20 @@
         }
       }
     },
-    "OpsWorksGFSLayer": {
+    "OpsWorksNFSLayer": {
       "Type": "AWS::OpsWorks::Layer",
       "Properties": {
         "AutoAssignElasticIps": false,
         "AutoAssignPublicIps": true,
         "CustomRecipes": {
           "Setup": [
-            "datashades::gfs-setup"
+            "datashades::nfs-setup"
           ],
           "Configure": [
-            "datashades::gfs-configure"
+            "datashades::nfs-configure"
           ],
           "Deploy": [
-            "datashades::gfs-deploy"
+            "datashades::nfs-deploy"
           ]
         },
         "CustomSecurityGroupIds": [
@@ -508,8 +682,8 @@
         ],
         "EnableAutoHealing": true,
         "InstallUpdatesOnBoot": true,
-        "Name": "CKAN-GFS",
-        "Shortname": "ckan-gfs",
+        "Name": "CKAN-NFS",
+        "Shortname": "ckan-nfs",
         "StackId": {
           "Ref": "OpsWorksStack"
         },
@@ -562,19 +736,15 @@
       "Properties": {
         "CustomRecipes": {
           "Setup": [
-            "datashades::zookeeper-setup",
             "datashades::solr-setup"
           ],
           "Deploy": [
-            "datashades::zookeeper-deploy",
             "datashades::solr-deploy"
           ],
           "Configure": [
-            "datashades::zookeeper-configure",
             "datashades::solr-configure"
           ],
           "Shutdown": [
-            "datashades::zookeeper-shutdown",
             "datashades::solr-shutdown"
           ]
         },
@@ -595,6 +765,68 @@
         "Type": "custom"
       }
     },
+    "OpsWorksDrupalDBLayer": {
+      "Type": "AWS::OpsWorks::Layer",
+      "Properties": {
+        "CustomRecipes": {
+          "Setup": [
+            "datashades::drupaldb-setup"
+          ],
+          "Deploy": [
+            "datashades::drupaldb-deploy"
+          ],
+          "Configure": [
+            "datashades::drupaldb-configure"
+          ]
+        },
+        "AutoAssignElasticIps": false,
+        "AutoAssignPublicIps": true,
+        "CustomSecurityGroupIds": [
+          {
+            "Ref": "AdminSG"
+          }
+        ],
+        "EnableAutoHealing": true,
+        "InstallUpdatesOnBoot": true,
+        "Name": "Druapl-DB",
+        "Shortname": "drupal-db",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "custom"
+      }
+    },
+    "OpsWorksDrupalWebLayer": {
+      "Type": "AWS::OpsWorks::Layer",
+      "Properties": {
+        "CustomRecipes": {
+          "Setup": [
+            "datashades::drupalweb-setup"
+          ],
+          "Deploy": [
+            "datashades::drupalweb-deploy"
+          ],
+          "Configure": [
+            "datashades::drupalweb-configure"
+          ]
+        },
+        "AutoAssignElasticIps": false,
+        "AutoAssignPublicIps": true,
+        "CustomSecurityGroupIds": [
+          {
+            "Ref": "AdminSG"
+          }
+        ],
+        "EnableAutoHealing": true,
+        "InstallUpdatesOnBoot": true,
+        "Name": "Drupal-Web",
+        "Shortname": "drupal-web",
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "custom"
+      }
+    },
     "OpsWorksWebLayer": {
       "Type": "AWS::OpsWorks::Layer",
       "Properties": {
@@ -606,6 +838,9 @@
           ],
           "Deploy": [
             "datashades::ckanweb-deploy"
+          ],
+          "Configure": [
+            "datashades::ckanweb-configure"
           ]
         },
         "CustomSecurityGroupIds": [
@@ -677,6 +912,60 @@
         "Type": "other"
       }
     },
+    "OpwxAppDrupal7": {
+      "Type": "AWS::OpsWorks::App",
+      "Properties": {
+        "Domains": [
+          {
+            "Fn::Join": [
+              ".",
+              [
+                {
+                  "Ref": "StackVersion"
+                },
+                {
+                  "Ref": "StackTLD"
+                }
+              ]
+            ]
+          }
+        ],
+        "AppSource": {
+          "Type": "archive",
+          "Url": {
+            "Ref": "DrupalSource"
+          }
+        },
+        "Description": "Druapl 7",
+        "EnableSsl": false,
+        "Name": {
+          "Fn::Join": [
+            "_",
+            [
+              "drupal",
+              {
+                "Ref": "StackVersion"
+              }
+            ]
+          ]
+        },
+        "Shortname": {
+          "Fn::Join": [
+            "_",
+            [
+              "drupal",
+              {
+                "Ref": "StackVersion"
+              }
+            ]
+          ]
+        },
+        "StackId": {
+          "Ref": "OpsWorksStack"
+        },
+        "Type": "other"
+      }
+    },
     "OpwxAppSolr": {
       "Type": "AWS::OpsWorks::App",
       "Properties": {
@@ -690,25 +979,6 @@
         "EnableSsl": false,
         "Name": "solr-5.5",
         "Shortname": "solr-5.5",
-        "StackId": {
-          "Ref": "OpsWorksStack"
-        },
-        "Type": "other"
-      }
-    },
-    "OpwxAppZooKeeper": {
-      "Type": "AWS::OpsWorks::App",
-      "Properties": {
-        "AppSource": {
-          "Type": "archive",
-          "Url": {
-            "Ref": "ZooKeeperSource"
-          }
-        },
-        "Description": "Apache ZooKeeper 3.4.8",
-        "EnableSsl": false,
-        "Name": "zookeeper-3.4",
-        "Shortname": "zookeeper-3.4",
         "StackId": {
           "Ref": "OpsWorksStack"
         },
@@ -842,34 +1112,114 @@
           "Ref": "StackTLD"
         }
       }
+    },
+    "CKANExtensions": {
+      "DependsOn": [
+        "OpsWorksStack",
+        "PostgresRDS"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ProvisionExtensions",
+      "Properties": {
+        "TemplateURL": {
+          "Ref": "ExtensionsTemplate"
+        },
+        "Parameters": {
+          "OpsWorksStack": {
+            "Ref": "OpsWorksStack"
+          }
+        }
+      }
+    },
+    "EC2Instances": {
+      "DependsOn": [
+        "OpsWorksStack",
+        "PostgresRDS",
+        "CKANExtensions"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ProvisionInstances",
+      "Properties": {
+        "TemplateURL": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-DrupalCKAN-Instances.json",
+        "Parameters": {
+          "NFSEC2Size": {
+            "Ref": "NFSEC2Size"
+          },
+          "OpsWorksStackID": {
+            "Ref": "OpsWorksStack"
+          },
+          "WebEC2Size": {
+            "Ref": "WebEC2Size"
+          },
+          "DefaultEC2Key": {
+            "Ref": "DefaultEC2Key"
+          },
+          "DrupalDBLayerID": {
+            "Ref": "OpsWorksDrupalDBLayer"
+          },
+          "NFSLayerID": {
+            "Ref": "OpsWorksNFSLayer"
+          },
+          "RedisLayerID": {
+            "Ref": "OpsWorksRedisLayer"
+          },
+          "SolrLayerID": {
+            "Ref": "OpsWorksSolrLayer"
+          },
+          "DrupalWebLayerID": {
+            "Ref": "OpsWorksDrupalWebLayer"
+          },
+          "WebLayerID": {
+            "Ref": "OpsWorksWebLayer"
+          },
+          "PrimarySubnet": {
+            "Ref": "PrimarySubnet"
+          },
+          "SecondarySubnet": {
+            "Ref": "SecondarySubnet"
+          }
+        }
+      }
     }
   },
   "Outputs": {
-    "aStackID": {
+    "StackID": {
       "Value": {
         "Ref": "OpsWorksStack"
       },
       "Description": "OpsWorks Stack Id"
     },
-    "bGFSLayer": {
+    "NFSLayer": {
       "Value": {
-        "Ref": "OpsWorksGFSLayer"
+        "Ref": "OpsWorksNFSLayer"
       },
-      "Description": "GFS Layer Id"
+      "Description": "NFS Layer Id"
     },
-    "dRedisLayer": {
+    "RedisLayer": {
       "Value": {
         "Ref": "OpsWorksRedisLayer"
       },
       "Description": "Redis Layer Id"
     },
-    "cSolrLayer": {
+    "SolrLayer": {
       "Value": {
         "Ref": "OpsWorksSolrLayer"
       },
       "Description": "SolrCloud Layer Id"
     },
-    "eWebLayer": {
+    "DrupalDBLayer": {
+      "Value": {
+        "Ref": "OpsWorksDrupalDBLayer"
+      },
+      "Description": "Drupal DB Layer Id"
+    },
+    "DrupalWebLayer": {
+      "Value": {
+        "Ref": "OpsWorksDrupalWebLayer"
+      },
+      "Description": "Drupal Web Layer Id"
+    },
+    "WebLayer": {
       "Value": {
         "Ref": "OpsWorksWebLayer"
       },
@@ -886,12 +1236,6 @@
         "Ref": "OpwxAppSolr"
       },
       "Description": "SolrCloud Application Id"
-    },
-    "ZooKeeperApp": {
-      "Value": {
-        "Ref": "OpwxAppZooKeeper"
-      },
-      "Description": "ZooKeeper Application Id"
     },
     "RDSInstance": {
       "Value": {

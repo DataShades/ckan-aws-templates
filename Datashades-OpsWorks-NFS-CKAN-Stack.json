@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates an OpsWorks NFS based CKAN Stack.\n",
+  "Description": "Creates an OpsWorks NFS based CKAN Stack with Drupal front end.\n",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -23,6 +23,10 @@
             "StackVersion",
             "StackTLD",
             "CreateTLD",
+            "CreateInstances",
+            "InstancesTemplate",
+            "CreateExtensions",
+            "ExtensionsTemplate",
             "NFSEC2Size",
             "WebEC2Size",
             "DefaultEC2Key",
@@ -89,6 +93,18 @@
         },
         "CreateServiceRole": {
           "default": "Do you need an OpsWorks Service Role created?"
+        },
+        "CreateInstances": {
+          "default": "Do you want to instances provisioned with this stack?"
+        },
+        "InstancesTemplate": {
+          "default": "Where is the CloudFormation Template for your Instances?"
+        },
+        "CreateExtensions": {
+          "default": "Do you want to provison CKAN extensions with this stack?"
+        },
+        "ExtensionsTemplate": {
+          "default": "Where is the CloudFormation Template for your CKAN Extensions?"
         },
         "StackTLD": {
           "default": "What TLD hosted on Route53 is this stack using for internal DNS?"
@@ -207,6 +223,34 @@
         "no"
       ]
     },
+    "CreateInstances": {
+      "Description": "Optional.",
+      "Type": "String",
+      "Default": "no",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "InstancesTemplate": {
+      "Description": "Valid S3 Bucket Location",
+      "Type": "String",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Instances.json"
+    },
+    "CreateExtensions": {
+      "Description": "Optional.",
+      "Type": "String",
+      "Default": "no",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "ExtensionsTemplate": {
+      "Description": "Valid S3 Bucket Location",
+      "Type": "String",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Extensions.json"
+    },
     "NFSEC2Size": {
       "Description": "Select EC2 Instance Size.",
       "Type": "String",
@@ -260,6 +304,7 @@
       "Type": "String"
     },
     "IcingaPW": {
+      "NoEcho": "true",
       "Description": "Icinga2 issued API Key",
       "Type": "String"
     },
@@ -341,6 +386,22 @@
         "yes",
         {
           "Ref": "CreateServiceRole"
+        }
+      ]
+    },
+    "ProvisionInstances": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "CreateInstances"
+        }
+      ]
+    },
+    "ProvisionExtensions": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "CreateExtensions"
         }
       ]
     },
@@ -456,6 +517,7 @@
         "CustomJson": {
           "datashades": {
             "ckan_web": {
+              "endpoint": "/",
               "sentryurl": {
                 "Ref": "SentryURL"
               }
@@ -882,6 +944,70 @@
         },
         "Name": {
           "Ref": "StackTLD"
+        }
+      }
+    },
+    "EC2Instances": {
+      "DependsOn": [
+        "OpsWorksStack",
+        "PostgresRDS",
+        "CKANExtensions"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ProvisionInstances",
+      "Properties": {
+        "TemplateURL": {
+          "Ref": "InstancesTemplate"
+        },
+        "Parameters": {
+          "NFSEC2Size": {
+            "Ref": "NFSEC2Size"
+          },
+          "OpsWorksStackID": {
+            "Ref": "OpsWorksStack"
+          },
+          "WebEC2Size": {
+            "Ref": "WebEC2Size"
+          },
+          "DefaultEC2Key": {
+            "Ref": "DefaultEC2Key"
+          },
+          "NFSLayerID": {
+            "Ref": "OpsWorksNFSLayer"
+          },
+          "RedisLayerID": {
+            "Ref": "OpsWorksRedisLayer"
+          },
+          "SolrLayerID": {
+            "Ref": "OpsWorksSolrLayer"
+          },
+          "WebLayerID": {
+            "Ref": "OpsWorksWebLayer"
+          },
+          "PrimarySubnet": {
+            "Ref": "PrimarySubnet"
+          },
+          "SecondarySubnet": {
+            "Ref": "SecondarySubnet"
+          }
+        }
+      }
+    },
+    "CKANExtensions": {
+      "DependsOn": [
+        "OpsWorksStack",
+        "PostgresRDS"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ProvisionExtensions",
+      "Properties": {
+        "TemplateURL": {
+          "Ref": "ExtensionsTemplate"
+        },
+        "Parameters": {
+          "OpsWorksStack": {
+            "Ref": "OpsWorksStack"
+          }
         }
       }
     }
