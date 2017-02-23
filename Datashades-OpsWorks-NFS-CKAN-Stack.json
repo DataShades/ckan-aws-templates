@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Creates an OpsWorks NFS based CKAN Stack with Drupal front end.\n",
+  "Description": "Creates an OpsWorks NFS based CKAN Stack.\n",
   "Metadata": {
     "AWS::CloudFormation::Interface": {
       "ParameterGroups": [
@@ -29,6 +29,7 @@
             "ExtensionsTemplate",
             "NFSEC2Size",
             "WebEC2Size",
+            "RDSSize",
             "DefaultEC2Key",
             "AdminUserGroup",
             "AdminPubKeyBucket",
@@ -36,7 +37,8 @@
             "PrimarySubnet",
             "SecondarySubnet",
             "AdminSG",
-            "RDSSize"
+            "CreateELB",
+            "ELBTemplate"
           ]
         },
         {
@@ -46,7 +48,8 @@
           "Parameters": [
             "DataVolSize",
             "PGDBPassword",
-            "NFSCIDR"
+            "CKANAdminPW",
+            "CKANAdminEmail"
           ]
         },
         {
@@ -101,10 +104,16 @@
           "default": "Where is the CloudFormation Template for your Instances?"
         },
         "CreateExtensions": {
-          "default": "Do you want to provison CKAN extensions with this stack?"
+          "default": "Do you want to provision CKAN extensions with this stack?"
         },
         "ExtensionsTemplate": {
           "default": "Where is the CloudFormation Template for your CKAN Extensions?"
+        },
+        "CreateELB": {
+          "default": "Do you want to provision an Application ELB with this stack?"
+        },
+        "ELBTemplate": {
+          "default": "Where is the CloudFormation Template for your Application Load Balancer?"
         },
         "StackTLD": {
           "default": "What TLD hosted on Route53 is this stack using for internal DNS?"
@@ -142,6 +151,12 @@
         "PGDBPassword": {
           "default": "Enter a password for Postgres DB access."
         },
+        "CKANAdminPW": {
+          "default": "Enter a password for your CKAN Admin user."
+        },
+        "CKANAdminEmail": {
+          "default": "Enter the email address for your CKAN Admin user."
+        },
         "DataVolSize": {
           "default": "How big should the Data Volume size be for this OpsWorks Stack?"
         },
@@ -153,9 +168,6 @@
         },
         "IcingaPW": {
           "default": "What is the API Password to request tickets from your Icinga2 Monitoring Master Node?"
-        },
-        "NFSCIDR": {
-          "default": "What CIDR block will File Storage clients reside in?"
         }
       }
     }
@@ -180,7 +192,7 @@
     },
     "SolrSource": {
       "Description": "URL for zip archive.",
-      "Default": "http://apache.mirror.digitalpacific.com.au/lucene/solr/5.5.3/solr-5.5.3.zip",
+      "Default": "http://apache.mirror.digitalpacific.com.au/lucene/solr/5.5.4/solr-5.5.4.zip",
       "Type": "String"
     },
     "CKANSource": {
@@ -251,6 +263,20 @@
       "Type": "String",
       "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Extensions.json"
     },
+    "CreateELB": {
+      "Description": "Optional.",
+      "Type": "String",
+      "Default": "no",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "ELBTemplate": {
+      "Description": "Valid S3 Bucket Location",
+      "Type": "String",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-ELB.json"
+    },
     "NFSEC2Size": {
       "Description": "Select EC2 Instance Size.",
       "Type": "String",
@@ -299,13 +325,26 @@
       "Type": "String",
       "Default": "monitoring.links.com.au"
     },
+    "IcingaPW": {
+      "NoEcho": "true",
+      "Description": "Icinga2 issued API Key",
+      "Type": "String"
+    },
     "SentryURL": {
       "Description": "Valid Sentry Client URL",
       "Type": "String"
     },
-    "IcingaPW": {
+    "CKANAdminPW": {
       "NoEcho": "true",
-      "Description": "Icinga2 issued API Key",
+      "Description": "Password must be at least 8 alphanumeric characters upto a maximum of 64 characters in length.",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Must be 8 - 64 alphanumeric characters."
+    },
+    "CKANAdminEmail": {
+      "Description": "Valid Email Address",
       "Type": "String"
     },
     "AdminPubKeyBucket": {
@@ -361,15 +400,6 @@
       "MinValue": 1,
       "MaxValue": 1000,
       "Default": 50
-    },
-    "NFSCIDR": {
-      "Description": "CIDR block in the form of x.x.x.x/x",
-      "Type": "String",
-      "MaxLength": "18",
-      "MinLength": "9",
-      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-      "ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x.",
-      "Default": "172.20.0.0/16"
     }
   },
   "Conditions": {
@@ -405,6 +435,14 @@
         }
       ]
     },
+    "ProvisionELB": {
+      "Fn::Equals": [
+        "yes",
+        {
+          "Ref": "CreateELB"
+        }
+      ]
+    },
     "UseMultiAZ": {
       "Fn::Equals": [
         "prod",
@@ -418,6 +456,7 @@
     "OpsWorksServiceRole": {
       "Condition": "ProvisionServiceRole",
       "Type": "AWS::IAM::Role",
+      "DeletionPolicy": "Retain",
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -460,6 +499,7 @@
     },
     "InstanceRole": {
       "Type": "AWS::IAM::Role",
+      "DeletionPolicy": "Retain",
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
@@ -479,6 +519,7 @@
       }
     },
     "InstanceRoleProfile": {
+      "DeletionPolicy": "Retain",
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "Path": "/",
@@ -517,6 +558,12 @@
         "CustomJson": {
           "datashades": {
             "ckan_web": {
+              "adminpw": {
+                "Ref": "CKANAdminPW"
+              },
+              "adminemail": {
+                "Ref": "CKANAdminEmail"
+              },
               "endpoint": "/",
               "sentryurl": {
                 "Ref": "SentryURL"
@@ -536,11 +583,6 @@
               },
               "usergroup": {
                 "Ref": "AdminUserGroup"
-              }
-            },
-            "nfs": {
-              "cidr": {
-                "Ref": "NFSCIDR"
               }
             },
             "postgres": {
@@ -872,7 +914,7 @@
         },
         "Engine": "postgres",
         "EngineVersion": "9.4.5",
-        "MasterUsername": "ckan_default",
+        "MasterUsername": "pg_dba",
         "MasterUserPassword": {
           "Ref": "PGDBPassword"
         },
@@ -950,8 +992,7 @@
     "EC2Instances": {
       "DependsOn": [
         "OpsWorksStack",
-        "PostgresRDS",
-        "CKANExtensions"
+        "PostgresRDS"
       ],
       "Type": "AWS::CloudFormation::Stack",
       "Condition": "ProvisionInstances",
@@ -1007,6 +1048,41 @@
         "Parameters": {
           "OpsWorksStack": {
             "Ref": "OpsWorksStack"
+          }
+        }
+      }
+    },
+    "CKANELB": {
+      "DependsOn": [
+        "EC2Instances"
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Condition": "ProvisionELB",
+      "Properties": {
+        "TemplateURL": {
+          "Ref": "ELBTemplate"
+        },
+        "Parameters": {
+          "PrimarySubnet": {
+            "Ref": "PrimarySubnet"
+          },
+          "SecondarySubnet": {
+            "Ref": "SecondarySubnet"
+          },
+          "OpsWorksStack": {
+            "Ref": "OpsWorksStack"
+          },
+          "StackVersion": {
+            "Ref": "StackVersion"
+          },
+          "StackVPC": {
+            "Ref": "StackVPC"
+          },
+          "AdminSG": {
+            "Ref": "AdminSG"
+          },
+          "WebInstance": {
+            "Ref": "AdminSG"
           }
         }
       }
