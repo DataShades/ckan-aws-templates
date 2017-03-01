@@ -657,6 +657,9 @@
         "AutoAssignElasticIps": false,
         "AutoAssignPublicIps": true,
         "CustomRecipes": {
+          "Shutdown": [
+            "datashades::nfs-shutdown"
+          ],
           "Setup": [
             "datashades::nfs-setup"
           ],
@@ -698,6 +701,9 @@
         "AutoAssignElasticIps": false,
         "AutoAssignPublicIps": true,
         "CustomRecipes": {
+          "Shutdown": [
+            "datashades::redis-shutdown"
+          ],
           "Setup": [
             "datashades::redis-setup"
           ],
