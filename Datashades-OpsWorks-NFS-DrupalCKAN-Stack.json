@@ -41,9 +41,10 @@
         },
         {
           "Label": {
-            "default": "Drupal MySQL Options"
+            "default": "Drupal Options"
           },
           "Parameters": [
+            "DrupalAdminPW",
             "MySQLRootPassword",
             "MySQLUserPassword"
           ]
@@ -173,6 +174,9 @@
         },
         "IcingaPW": {
           "default": "What is the API Password to request tickets from your Icinga2 Monitoring Master Node?"
+        },
+        "DrupalAdminPW": {
+          "default": "Enter a password for your Drupal Admin user."
         }
       }
     }
@@ -397,6 +401,15 @@
       "MaxValue": 1000,
       "Default": 50
     },
+    "DrupalAdminPW": {
+      "NoEcho": "true",
+      "Description": "Password must be at least 8 alphanumeric characters upto a maximum of 64 characters in length.",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "Must be 8 - 64 alphanumeric characters."
+    },
     "MySQLRootPassword": {
       "NoEcho": "true",
       "Description": "Password must be at least 8 alphanumeric characters upto a maximum of 64 characters in length.",
@@ -563,6 +576,11 @@
         },
         "CustomJson": {
           "datashades": {
+            "drupal_web": {
+              "adminpw": {
+                "Ref": "DrupalAdminPW"
+              }
+            },
             "ckan_web": {
               "adminpw": {
                 "Ref": "CKANAdminPW"
@@ -1196,6 +1214,10 @@
     }
   },
   "Outputs": {
+    "Documentation": {
+      "Value": "https://github.com/DataShades/opswx-ckan-cookbook/wiki",
+      "Description": "Datashades OpsWorks stack documentation"
+    },
     "StackID": {
       "Value": {
         "Ref": "OpsWorksStack"
