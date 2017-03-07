@@ -184,7 +184,7 @@
       "NoEcho": "true"
     },
     "CookbookRevision": {
-      "Default": "v1.0.0",
+      "Default": "v1.1.0",
       "Description": "Branch name in repository to checkout.",
       "Type": "String",
       "MinLength": "1",
@@ -262,20 +262,6 @@
       "Description": "Valid S3 Bucket Location",
       "Type": "String",
       "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Extensions.json"
-    },
-    "CreateELB": {
-      "Description": "Optional.",
-      "Type": "String",
-      "Default": "no",
-      "AllowedValues": [
-        "yes",
-        "no"
-      ]
-    },
-    "ELBTemplate": {
-      "Description": "Valid S3 Bucket Location",
-      "Type": "String",
-      "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-ELB.json"
     },
     "NFSEC2Size": {
       "Description": "Select EC2 Instance Size.",
@@ -432,14 +418,6 @@
         "yes",
         {
           "Ref": "CreateExtensions"
-        }
-      ]
-    },
-    "ProvisionELB": {
-      "Fn::Equals": [
-        "yes",
-        {
-          "Ref": "CreateELB"
         }
       ]
     },
@@ -1054,41 +1032,6 @@
         "Parameters": {
           "OpsWorksStack": {
             "Ref": "OpsWorksStack"
-          }
-        }
-      }
-    },
-    "CKANELB": {
-      "DependsOn": [
-        "EC2Instances"
-      ],
-      "Type": "AWS::CloudFormation::Stack",
-      "Condition": "ProvisionELB",
-      "Properties": {
-        "TemplateURL": {
-          "Ref": "ELBTemplate"
-        },
-        "Parameters": {
-          "PrimarySubnet": {
-            "Ref": "PrimarySubnet"
-          },
-          "SecondarySubnet": {
-            "Ref": "SecondarySubnet"
-          },
-          "OpsWorksStack": {
-            "Ref": "OpsWorksStack"
-          },
-          "StackVersion": {
-            "Ref": "StackVersion"
-          },
-          "StackVPC": {
-            "Ref": "StackVPC"
-          },
-          "AdminSG": {
-            "Ref": "AdminSG"
-          },
-          "WebInstance": {
-            "Ref": "AdminSG"
           }
         }
       }

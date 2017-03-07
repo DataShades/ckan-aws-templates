@@ -193,7 +193,7 @@
       "NoEcho": "true"
     },
     "CookbookRevision": {
-      "Default": "v1.0.0",
+      "Default": "v1.1.0",
       "Description": "Branch name in repository to checkout.",
       "Type": "String",
       "MinLength": "1",
