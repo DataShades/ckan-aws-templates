@@ -23,6 +23,7 @@
             "StackVersion",
             "StackTLD",
             "CreateTLD",
+            "CreateELB",
             "CreateInstances",
             "InstancesTemplate",
             "CreateExtensions",
@@ -36,9 +37,7 @@
             "StackVPC",
             "PrimarySubnet",
             "SecondarySubnet",
-            "AdminSG",
-            "CreateELB",
-            "ELBTemplate"
+            "AdminSG"
           ]
         },
         {
@@ -110,10 +109,7 @@
           "default": "Where is the CloudFormation Template for your CKAN Extensions?"
         },
         "CreateELB": {
-          "default": "Do you want to provision an Application ELB with this stack?"
-        },
-        "ELBTemplate": {
-          "default": "Where is the CloudFormation Template for your Application Load Balancer?"
+          "default": "Do you want to provision an Elastic Load Balancer with this stack?"
         },
         "StackTLD": {
           "default": "What TLD hosted on Route53 is this stack using for internal DNS?"
@@ -197,7 +193,7 @@
     },
     "CKANSource": {
       "Description": "URL for zip archive.",
-      "Default": "https://github.com/ckan/ckan/archive/ckan-2.5.2.zip",
+      "Default": "https://github.com/ckan/ckan/archive/ckan-2.5.4.zip",
       "Type": "String"
     },
     "StackVersion": {
@@ -236,9 +232,9 @@
       ]
     },
     "CreateInstances": {
-      "Description": "Optional.",
+      "Description": "Recommended",
       "Type": "String",
-      "Default": "no",
+      "Default": "yes",
       "AllowedValues": [
         "yes",
         "no"
@@ -262,6 +258,15 @@
       "Description": "Valid S3 Bucket Location",
       "Type": "String",
       "Default": "https://s3-ap-southeast-2.amazonaws.com/link-opsworks/Datashades-OpsWorks-CKAN-Extensions.json"
+    },
+    "CreateELB": {
+      "Description": "Recommended",
+      "Type": "String",
+      "Default": "yes",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
     },
     "NFSEC2Size": {
       "Description": "Select EC2 Instance Size.",
@@ -418,6 +423,26 @@
         "yes",
         {
           "Ref": "CreateExtensions"
+        }
+      ]
+    },
+    "ProvisionELB": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "CreateELB"
+            }
+          ]
+        },
+        {
+          "Fn::Equals": [
+            "yes",
+            {
+              "Ref": "CreateInstances"
+            }
+          ]
         }
       ]
     },
@@ -897,7 +922,6 @@
           "Ref": "RDSSubnetGroup"
         },
         "Engine": "postgres",
-        "EngineVersion": "9.4.5",
         "MasterUsername": "pg_dba",
         "MasterUserPassword": {
           "Ref": "PGDBPassword"
@@ -1032,6 +1056,121 @@
         "Parameters": {
           "OpsWorksStack": {
             "Ref": "OpsWorksStack"
+          }
+        }
+      }
+    },
+    "CKANELB": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Condition": "ProvisionELB",
+      "Properties": {
+        "LoadBalancerName": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "StackVersion"
+              },
+              "CKANELB"
+            ]
+          ]
+        },
+        "HealthCheck": {
+          "Target": "HTTP:80/",
+          "HealthyThreshold": "2",
+          "UnhealthyThreshold": "6",
+          "Interval": "30",
+          "Timeout": "20"
+        },
+        "Listeners": [
+          {
+            "InstancePort": "80",
+            "LoadBalancerPort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "Scheme": "internet-facing",
+        "SecurityGroups": [
+          {
+            "Ref": "AdminSG"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PrimarySubnet"
+          },
+          {
+            "Ref": "SecondarySubnet"
+          }
+        ]
+      }
+    },
+    "ELBAttachment": {
+      "DependsOn": [
+        "OpsWorksStack",
+        "CKANELB"
+      ],
+      "Condition": "ProvisionELB",
+      "Type": "AWS::OpsWorks::ElasticLoadBalancerAttachment",
+      "Properties": {
+        "ElasticLoadBalancerName": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "StackVersion"
+              },
+              "CKANELB"
+            ]
+          ]
+        },
+        "LayerId": {
+          "Ref": "OpsWorksWebLayer"
+        }
+      }
+    },
+    "WebELBCNAME": {
+      "Condition": "ProvisionELB",
+      "Type": "AWS::Route53::RecordSet",
+      "DependsOn": "CKANELB",
+      "Properties": {
+        "Type": "A",
+        "Name": {
+          "Fn::Join": [
+            ".",
+            [
+              {
+                "Ref": "StackVersion"
+              },
+              {
+                "Ref": "StackTLD"
+              }
+            ]
+          ]
+        },
+        "HostedZoneName": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "StackTLD"
+              },
+              "."
+            ]
+          ]
+        },
+        "AliasTarget": {
+          "HostedZoneId": {
+            "Fn::GetAtt": [
+              "CKANELB",
+              "CanonicalHostedZoneNameID"
+            ]
+          },
+          "DNSName": {
+            "Fn::GetAtt": [
+              "CKANELB",
+              "DNSName"
+            ]
           }
         }
       }

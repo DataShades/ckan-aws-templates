@@ -197,6 +197,17 @@
     }
   },
   "Outputs": {
-    
+    "ServiceInstance": {
+      "Value": {
+        "Ref": "OpswxEC2Services1"
+      },
+      "Description": "Services Node Instance Id"
+    },
+    "WebInstance": {
+      "Value": {
+        "Ref": "OpswxEC2Web1"
+      },
+      "Description": "Web Node Instance Id"
+    }
   }
 }
