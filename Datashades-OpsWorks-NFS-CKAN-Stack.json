@@ -922,7 +922,7 @@
           "Ref": "RDSSubnetGroup"
         },
         "Engine": "postgres",
-        "MasterUsername": "pg_dba",
+        "MasterUsername": "ckan_dba",
         "MasterUserPassword": {
           "Ref": "PGDBPassword"
         },
