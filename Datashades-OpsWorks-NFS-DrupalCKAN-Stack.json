@@ -197,7 +197,7 @@
       "NoEcho": "true"
     },
     "CookbookRevision": {
-      "Default": "v1.1.0",
+      "Default": "v1.1.2",
       "Description": "Branch name in repository to checkout.",
       "Type": "String",
       "MinLength": "1",
@@ -1100,7 +1100,7 @@
           "Ref": "RDSSubnetGroup"
         },
         "Engine": "postgres",
-        "MasterUsername": "pg_dba",
+        "MasterUsername": "ckan_dba",
         "MasterUserPassword": {
           "Ref": "PGDBPassword"
         },
