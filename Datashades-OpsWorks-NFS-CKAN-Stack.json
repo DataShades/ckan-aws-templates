@@ -913,6 +913,9 @@
               {
                 "Ref": "StackVersion"
               },
+              {
+                "Ref": "AWS::StackName"
+              },
               "-pg"
             ]
           ]
