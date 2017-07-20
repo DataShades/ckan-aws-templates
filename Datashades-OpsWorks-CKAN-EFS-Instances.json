@@ -1,0 +1,202 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates instances for OpsWorks CKAN NFS Stack.\n",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "OpsWorks Stack Details"
+          },
+          "Parameters": [
+            "OpsWorksStackID",
+            "SolrLayerID",
+            "RedisLayerID",
+            "WebLayerID"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Stack Instance Details"
+          },
+          "Parameters": [
+            "DefaultEC2Key",
+            "ServicesEC2Size",
+            "WebEC2Size",
+            "PrimarySubnet",
+            "SecondarySubnet"
+          ]
+        }
+      ],
+      "ParameterLabels": {
+        "ServicesEC2Size": {
+          "default": "What instance size do you want to use for Service Instances?"
+        },
+        "WebEC2Size": {
+          "default": "What instance size do you want to use for Web Instances?"
+        },
+        "DefaultEC2Key": {
+          "default": "What EC2 key pair should these instances use for SSH access?"
+        },
+        "OpsWorksStackID": {
+          "default": "What OpsWorks stack do you want to provision instances into?"
+        },
+        "SolrLayerID": {
+          "default": "What is the Solr Layer ID of the stack?"
+        },
+        "RedisLayerID": {
+          "default": "What is the Redis Layer ID of the stack?"
+        },
+        "WebLayerID": {
+          "default": "What is the Web Layer ID of the stack?"
+        },
+        "DrupalWebLayerID": {
+          "default": "What is the Drupal Web Layer ID of the stack?"
+        },
+        "DrupalDBLayerID": {
+          "default": "What is the Drupal DB Layer ID of the stack?"
+        },
+        "PrimarySubnet": {
+          "default": "Which Subnet in the selected VPC should primary instances be provisioned in?"
+        },
+        "SecondarySubnet": {
+          "default": "Which Subnet in the selected VPC should seconardary/failover instances be provisioned in?"
+        }
+      }
+    }
+  },
+  "Parameters": {
+    "ServicesEC2Size": {
+      "Description": "Select EC2 Instance Size.",
+      "Type": "String",
+      "Default": "t2.small",
+      "AllowedValues": [
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge"
+      ]
+    },
+    "WebEC2Size": {
+      "Description": "Select EC2 Instance Size.",
+      "Type": "String",
+      "Default": "t2.medium",
+      "AllowedValues": [
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m3.medium",
+        "m3.large",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge"
+      ]
+    },
+    "DefaultEC2Key": {
+      "Description": "Select an existing SSH key",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "OpsWorksStackID": {
+      "Description": "Enter an OpsWorks Stack ID.",
+      "Type": "String"
+    },
+    "SolrLayerID": {
+      "Description": "Enter an OpsWorks Stack Layer ID.",
+      "Type": "String"
+    },
+    "RedisLayerID": {
+      "Description": "Enter an OpsWorks Stack Layer ID.",
+      "Type": "String"
+    },
+    "WebLayerID": {
+      "Description": "Enter an OpsWorks Stack Layer ID.",
+      "Type": "String"
+    },
+    "PrimarySubnet": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Select an existing subnet residing in the selected VPC."
+    },
+    "SecondarySubnet": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Select an existing subnet residing in the selected VPC."
+    }
+  },
+  "Resources": {
+    "OpswxEC2Services1": {
+      "Type": "AWS::OpsWorks::Instance",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PrimarySubnet"
+        },
+        "RootDeviceType": "ebs",
+        "InstallUpdatesOnBoot": true,
+        "InstanceType": {
+          "Ref": "ServicesEC2Size"
+        },
+        "LayerIds": [
+          {
+            "Ref": "RedisLayerID"
+          },
+          {
+            "Ref": "SolrLayerID"
+          }
+        ],
+        "SshKeyName": {
+          "Ref": "DefaultEC2Key"
+        },
+        "StackId": {
+          "Ref": "OpsWorksStackID"
+        }
+      }
+    },
+    "OpswxEC2Web1": {
+      "Type": "AWS::OpsWorks::Instance",
+      "DependsOn": [
+        "OpswxEC2Services1"
+      ],
+      "Properties": {
+        "SubnetId": {
+          "Ref": "SecondarySubnet"
+        },
+        "RootDeviceType": "ebs",
+        "InstallUpdatesOnBoot": true,
+        "InstanceType": {
+          "Ref": "WebEC2Size"
+        },
+        "LayerIds": [
+          {
+            "Ref": "WebLayerID"
+          }
+        ],
+        "SshKeyName": {
+          "Ref": "DefaultEC2Key"
+        },
+        "StackId": {
+          "Ref": "OpsWorksStackID"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ServiceInstance": {
+      "Value": {
+        "Ref": "OpswxEC2Services1"
+      },
+      "Description": "Services Node Instance Id"
+    },
+    "WebInstance": {
+      "Value": {
+        "Ref": "OpswxEC2Web1"
+      },
+      "Description": "Web Node Instance Id"
+    }
+  }
+}
